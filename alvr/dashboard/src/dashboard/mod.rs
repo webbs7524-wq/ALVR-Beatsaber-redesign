@@ -16,7 +16,8 @@ use alvr_gui_common::theme;
 use alvr_packets::{ClientConnectionsAction, PathValuePair};
 use alvr_session::SessionConfig;
 use eframe::egui::{
-    self, Align, CentralPanel, Direction, Frame, Layout, Margin, Panel, RichText, Ui,
+    self, Align, Button, CentralPanel, Color32, CornerRadius, Frame, Layout, Margin, Panel,
+    Response, RichText, Stroke, Ui,
 };
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, path::PathBuf, sync::Arc};
@@ -141,6 +142,130 @@ impl Dashboard {
     }
 }
 
+fn nav_tab(ui: &mut Ui, selected: bool, label: &str) -> Response {
+    let width = ui.available_width();
+    let text = RichText::new(label).size(15.0).strong().color(if selected {
+        theme::FG
+    } else {
+        theme::MUTED_FG
+    });
+
+    ui.add(
+        Button::new(text)
+            .selected(selected)
+            .fill(if selected {
+                theme::ACCENT_DARK
+            } else {
+                Color32::from_rgba_premultiplied(0, 0, 0, 0)
+            })
+            .stroke(Stroke::new(
+                if selected { 1.5 } else { 1.0 },
+                if selected {
+                    theme::ACCENT
+                } else {
+                    Color32::from_rgba_premultiplied(70, 82, 126, 90)
+                },
+            ))
+            .corner_radius(CornerRadius::same(theme::PILL_ROUNDING))
+            .min_size(egui::vec2(width, 38.0)),
+    )
+}
+
+fn sidebar_action(ui: &mut Ui, label: &str) -> Response {
+    let width = ui.available_width();
+    ui.add(
+        Button::new(RichText::new(label).strong().color(theme::FG))
+            .fill(theme::ACCENT_RED_DARK)
+            .stroke(Stroke::new(1.0, theme::ACCENT_RED))
+            .corner_radius(CornerRadius::same(theme::PILL_ROUNDING))
+            .min_size(egui::vec2(width, 36.0)),
+    )
+}
+
+fn steamvr_status(ui: &mut Ui, connected: bool) {
+    ui.horizontal(|ui| {
+        ui.add_space(4.0);
+        ui.label(RichText::new("SteamVR").size(13.0).color(theme::MUTED_FG));
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+            let (label, fill, stroke, text_color) = if connected {
+                (
+                    "Connected",
+                    Color32::from_rgba_premultiplied(25, 100, 73, 160),
+                    theme::OK_GREEN,
+                    theme::OK_GREEN,
+                )
+            } else {
+                (
+                    "Disconnected",
+                    Color32::from_rgba_premultiplied(115, 20, 47, 150),
+                    theme::KO_RED,
+                    theme::KO_RED,
+                )
+            };
+
+            theme::pill_frame(fill, stroke).show(ui, |ui| {
+                ui.label(RichText::new(label).size(12.0).strong().color(text_color));
+            });
+        });
+    });
+}
+
+fn page_header(ui: &mut Ui, label: &str) {
+    ui.horizontal(|ui| {
+        let (_, accent_rect) = ui.allocate_space(egui::vec2(5.0, 28.0));
+        ui.painter()
+            .rect_filled(accent_rect, CornerRadius::same(4), theme::ACCENT);
+        ui.heading(RichText::new(label).size(26.0).strong().color(theme::FG));
+    });
+
+    let (_, line_rect) = ui.allocate_space(egui::vec2(ui.available_width(), 4.0));
+    let mid = line_rect.center().x;
+    ui.painter().line_segment(
+        [
+            egui::pos2(line_rect.left(), line_rect.center().y),
+            egui::pos2(mid, line_rect.center().y),
+        ],
+        Stroke::new(1.5, theme::ACCENT_RED),
+    );
+    ui.painter().line_segment(
+        [
+            egui::pos2(mid, line_rect.center().y),
+            egui::pos2(line_rect.right(), line_rect.center().y),
+        ],
+        Stroke::new(1.5, theme::ACCENT),
+    );
+    ui.add_space(10.0);
+}
+
+fn paint_saber_background(ui: &mut Ui) {
+    let rect = ui.max_rect();
+    let painter = ui.painter();
+    let blue = Color32::from_rgba_premultiplied(0, 210, 255, 42);
+    let red = Color32::from_rgba_premultiplied(255, 43, 92, 42);
+
+    painter.line_segment(
+        [
+            egui::pos2(rect.left() - 120.0, rect.bottom() - 40.0),
+            egui::pos2(rect.left() + rect.width() * 0.70, rect.top() - 30.0),
+        ],
+        Stroke::new(3.0, red),
+    );
+    painter.line_segment(
+        [
+            egui::pos2(rect.left() + rect.width() * 0.32, rect.bottom() + 40.0),
+            egui::pos2(rect.right() + 100.0, rect.top() + 55.0),
+        ],
+        Stroke::new(3.0, blue),
+    );
+    painter.line_segment(
+        [
+            egui::pos2(rect.left() + 12.0, rect.top() + 24.0),
+            egui::pos2(rect.right() - 12.0, rect.top() + 24.0),
+        ],
+        Stroke::new(1.0, Color32::from_rgba_premultiplied(100, 117, 170, 45)),
+    );
+}
+
 impl eframe::App for Dashboard {
     fn ui(&mut self, ui: &mut Ui, _: &mut eframe::Frame) {
         let mut requests = vec![];
@@ -195,13 +320,20 @@ impl eframe::App for Dashboard {
         }
 
         if *self.server_restarting.lock() {
-            CentralPanel::default().show_inside(ui, |ui| {
-                // todo: find a way to center both vertically and horizontally
-                ui.vertical_centered(|ui| {
-                    ui.add_space(100.0);
-                    ui.heading(RichText::new("SteamVR is restarting").size(30.0));
+            CentralPanel::default()
+                .frame(Frame::new().fill(theme::BG))
+                .show_inside(ui, |ui| {
+                    paint_saber_background(ui);
+                    // todo: find a way to center both vertically and horizontally
+                    ui.vertical_centered(|ui| {
+                        ui.add_space(100.0);
+                        ui.heading(
+                            RichText::new("SteamVR is restarting")
+                                .size(30.0)
+                                .color(theme::FG),
+                        );
+                    });
                 });
-            });
 
             return;
         }
@@ -209,48 +341,61 @@ impl eframe::App for Dashboard {
         self.notification_bar.ui(ui);
 
         if self.setup_wizard_open {
-            CentralPanel::default().show_inside(ui, |ui| {
-                if let Some(request) = self.setup_wizard.ui(ui) {
-                    match request {
-                        SetupWizardRequest::ServerRequest(request) => {
-                            requests.push(request);
-                        }
-                        SetupWizardRequest::Close { finished } => {
-                            if finished {
-                                requests.push(ServerRequest::SetSessionValues(vec![
-                                    PathValuePair {
-                                        path: alvr_packets::parse_path(
-                                            "session_settings.extra.open_setup_wizard",
-                                        ),
-                                        value: serde_json::Value::Bool(false),
-                                    },
-                                ]))
+            CentralPanel::default()
+                .frame(Frame::new().inner_margin(Margin::same(22)).fill(theme::BG))
+                .show_inside(ui, |ui| {
+                    paint_saber_background(ui);
+                    if let Some(request) = self.setup_wizard.ui(ui) {
+                        match request {
+                            SetupWizardRequest::ServerRequest(request) => {
+                                requests.push(request);
                             }
+                            SetupWizardRequest::Close { finished } => {
+                                if finished {
+                                    requests.push(ServerRequest::SetSessionValues(vec![
+                                        PathValuePair {
+                                            path: alvr_packets::parse_path(
+                                                "session_settings.extra.open_setup_wizard",
+                                            ),
+                                            value: serde_json::Value::Bool(false),
+                                        },
+                                    ]))
+                                }
 
-                            self.setup_wizard_open = false;
+                                self.setup_wizard_open = false;
+                            }
                         }
                     }
-                }
-            });
+                });
         } else {
             Panel::left("side_panel")
                 .resizable(false)
                 .frame(
                     Frame::new()
                         .fill(theme::LIGHTER_BG)
-                        .inner_margin(Margin::same(7)),
+                        .inner_margin(Margin::same(10))
+                        .stroke(Stroke::new(1.0, theme::SEPARATOR_BG)),
                 )
-                .exact_size(160.0)
+                .exact_size(190.0)
                 .show_inside(ui, |ui| {
                     ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                        ui.add_space(13.0);
-                        ui.heading(RichText::new("ALVR").size(25.0).strong());
+                        ui.add_space(10.0);
+                        ui.heading(RichText::new("ALVR").size(29.0).strong().color(theme::FG));
+                        ui.label(
+                            RichText::new("SABER LINK")
+                                .size(11.0)
+                                .strong()
+                                .color(theme::ACCENT),
+                        );
                         egui::warn_if_debug_build(ui);
                     });
 
                     ui.with_layout(Layout::top_down_justified(Align::Min), |ui| {
+                        ui.add_space(12.0);
                         for (tab, label) in &self.tab_labels {
-                            ui.selectable_value(&mut self.selected_tab, *tab, *label);
+                            if nav_tab(ui, self.selected_tab == *tab, label).clicked() {
+                                self.selected_tab = *tab;
+                            }
                         }
                     });
 
@@ -261,40 +406,24 @@ impl eframe::App for Dashboard {
                             ui.add_space(5.0);
 
                             if connected_to_server {
-                                if ui.button("Restart SteamVR").clicked() {
+                                if sidebar_action(ui, "Restart SteamVR").clicked() {
                                     self.restart_steamvr(&mut requests);
                                 }
-                            } else if ui.button("Launch SteamVR").clicked() {
+                            } else if sidebar_action(ui, "Launch SteamVR").clicked() {
                                 crate::steamvr_launcher::LAUNCHER.lock().launch_steamvr();
                             }
 
-                            ui.horizontal(|ui| {
-                                ui.add_space(4.0);
-                                ui.label(RichText::new("SteamVR:").size(13.0));
-                                ui.add_space(-10.0);
-                                ui.with_layout(
-                                    Layout::centered_and_justified(Direction::LeftToRight),
-                                    |ui| {
-                                        ui.label(
-                                            if connected_to_server {
-                                                RichText::new("Connected").color(theme::OK_GREEN)
-                                            } else {
-                                                RichText::new("Disconnected").color(theme::KO_RED)
-                                            }
-                                            .size(13.0),
-                                        )
-                                    },
-                                );
-                            })
+                            steamvr_status(ui, connected_to_server);
                         },
                     )
                 });
 
             CentralPanel::default()
-                .frame(Frame::new().inner_margin(Margin::same(20)).fill(theme::BG))
+                .frame(Frame::new().inner_margin(Margin::same(22)).fill(theme::BG))
                 .show_inside(ui, |ui| {
+                    paint_saber_background(ui);
                     ui.with_layout(Layout::top_down_justified(Align::LEFT), |ui| {
-                        ui.heading(RichText::new(self.tab_labels[&self.selected_tab]).size(25.0));
+                        page_header(ui, self.tab_labels[&self.selected_tab]);
                         match self.selected_tab {
                             Tab::Devices => {
                                 requests.extend(self.connections_tab.ui(ui, connected_to_server));

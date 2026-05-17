@@ -1,6 +1,6 @@
 use alvr_common::LogSeverity;
 use alvr_events::{Event, EventType};
-use alvr_gui_common::theme::log_colors;
+use alvr_gui_common::theme::{self, log_colors};
 use alvr_session::{RawEventsConfig, Settings};
 use eframe::{
     egui::{Grid, OpenUrl, OutputCommand, RichText, ScrollArea, Ui},
@@ -73,53 +73,62 @@ impl LogsTab {
     }
 
     pub fn ui(&mut self, ui: &mut Ui) {
-        ui.horizontal(|ui| {
-            if ui.button("Copy all").clicked() {
-                ui.output_mut(|out| {
-                    out.commands
-                        .push(OutputCommand::CopyText(self.entries.iter().fold(
-                            String::new(),
-                            |acc, entry| {
-                                format!(
-                                    "{}{} [{}] {}\n",
-                                    acc, entry.timestamp, entry.ty, entry.message
-                                )
-                            },
-                        )));
-                })
-            }
-            if ui.button("Open logs directory").clicked() {
-                let log_dir = crate::get_filesystem_layout().log_dir;
-                ui.ctx().open_url(OpenUrl::same_tab(format!(
-                    "file://{}",
-                    log_dir.to_string_lossy()
-                )));
-            }
-            if ui.button("Clear all").clicked() {
-                self.entries.clear();
-            }
+        theme::section_frame().show(ui, |ui| {
+            ui.horizontal(|ui| {
+                if ui.button("Copy all").clicked() {
+                    ui.output_mut(|out| {
+                        out.commands
+                            .push(OutputCommand::CopyText(self.entries.iter().fold(
+                                String::new(),
+                                |acc, entry| {
+                                    format!(
+                                        "{}{} [{}] {}\n",
+                                        acc, entry.timestamp, entry.ty, entry.message
+                                    )
+                                },
+                            )));
+                    })
+                }
+                if ui.button("Open logs directory").clicked() {
+                    let log_dir = crate::get_filesystem_layout().log_dir;
+                    ui.ctx().open_url(OpenUrl::same_tab(format!(
+                        "file://{}",
+                        log_dir.to_string_lossy()
+                    )));
+                }
+                if ui.button("Clear all").clicked() {
+                    self.entries.clear();
+                }
+            });
         });
 
-        ScrollArea::both()
-            .stick_to_bottom(true)
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                Grid::new(0)
-                    .spacing((10.0, 2.0))
-                    .num_columns(3)
-                    .striped(true)
-                    .show(ui, |ui| {
-                        for entry in &self.entries {
-                            ui.colored_label(
-                                entry.color,
-                                RichText::new(&entry.timestamp).size(12.0),
-                            );
-                            ui.colored_label(entry.color, RichText::new(&entry.ty).size(12.0));
-                            ui.colored_label(entry.color, RichText::new(&entry.message).size(12.0));
+        ui.add_space(10.0);
 
-                            ui.end_row();
-                        }
-                    });
-            });
+        theme::section_frame().show(ui, |ui| {
+            ScrollArea::both()
+                .stick_to_bottom(true)
+                .auto_shrink([false, false])
+                .show(ui, |ui| {
+                    Grid::new(0)
+                        .spacing((10.0, 2.0))
+                        .num_columns(3)
+                        .striped(true)
+                        .show(ui, |ui| {
+                            for entry in &self.entries {
+                                ui.colored_label(
+                                    entry.color,
+                                    RichText::new(&entry.timestamp).size(12.0),
+                                );
+                                ui.colored_label(entry.color, RichText::new(&entry.ty).size(12.0));
+                                ui.colored_label(
+                                    entry.color,
+                                    RichText::new(&entry.message).size(12.0),
+                                );
+
+                                ui.end_row();
+                            }
+                        });
+                });
+        });
     }
 }

@@ -1,6 +1,6 @@
 use crate::dashboard::ServerRequest;
 use alvr_gui_common::theme;
-use eframe::egui::{Frame, Grid, RichText, ScrollArea, Ui};
+use eframe::egui::{Grid, RichText, ScrollArea, Ui};
 use std::{
     path::PathBuf,
     time::{Duration, Instant},
@@ -59,38 +59,35 @@ impl InstallationTab {
                 }
             });
 
-            Frame::group(ui.style())
-                .fill(theme::SECTION_BG)
-                .inner_margin(theme::FRAME_PADDING)
-                .show(ui, |ui| {
-                    ui.vertical_centered_justified(|ui| {
-                        ui.label(RichText::new("Registered drivers").size(18.0));
-                    });
+            theme::section_frame().show(ui, |ui| {
+                ui.vertical_centered_justified(|ui| {
+                    ui.label(RichText::new("Registered drivers").size(18.0));
+                });
 
-                    Grid::new(0).num_columns(2).show(ui, |ui| {
-                        for driver_path in &self.drivers {
-                            if ui.button("Remove").clicked() {
-                                requests.push(InstallationTabRequest::ServerRequest(
-                                    ServerRequest::UnregisterDriver(driver_path.clone()),
-                                ));
-                            }
-
-                            ScrollArea::new([true, false])
-                                .auto_shrink([false, false])
-                                .id_salt(driver_path)
-                                .show(ui, |ui| {
-                                    ui.label(driver_path.to_string_lossy());
-                                });
-                            ui.end_row();
+                Grid::new(0).num_columns(2).show(ui, |ui| {
+                    for driver_path in &self.drivers {
+                        if ui.button("Remove").clicked() {
+                            requests.push(InstallationTabRequest::ServerRequest(
+                                ServerRequest::UnregisterDriver(driver_path.clone()),
+                            ));
                         }
-                    });
 
-                    if ui.button("Register ALVR driver").clicked() {
-                        requests.push(InstallationTabRequest::ServerRequest(
-                            ServerRequest::RegisterAlvrDriver,
-                        ));
+                        ScrollArea::new([true, false])
+                            .auto_shrink([false, false])
+                            .id_salt(driver_path)
+                            .show(ui, |ui| {
+                                ui.label(driver_path.to_string_lossy());
+                            });
+                        ui.end_row();
                     }
                 });
+
+                if ui.button("Register ALVR driver").clicked() {
+                    requests.push(InstallationTabRequest::ServerRequest(
+                        ServerRequest::RegisterAlvrDriver,
+                    ));
+                }
+            });
         });
 
         requests

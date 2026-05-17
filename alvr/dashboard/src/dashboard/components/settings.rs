@@ -5,7 +5,9 @@ use super::{
 use crate::dashboard::ServerRequest;
 use alvr_gui_common::{DisplayString, theme};
 use alvr_session::{SessionSettings, Settings};
-use eframe::egui::{Align, Frame, Grid, Layout, RichText, ScrollArea, Ui};
+use eframe::egui::{
+    self, Align, Button, CornerRadius, Grid, Layout, RichText, ScrollArea, Stroke, Ui,
+};
 #[cfg(target_arch = "wasm32")]
 use instant::Instant;
 use serde_json as json;
@@ -123,21 +125,17 @@ impl SettingsTab {
 
         let mut path_value_pairs = vec![];
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-            Frame::group(ui.style())
-                .fill(theme::DARKER_BG)
+            theme::section_frame()
                 .inner_margin(theme::FRAME_PADDING)
                 .show(ui, |ui| {
                     ui.horizontal_wrapped(|ui| {
-                        ui.selectable_value(
-                            &mut self.selected_top_tab_id,
-                            "presets".into(),
-                            RichText::new("Presets").raised().size(15.0),
-                        );
+                        top_tab_button(ui, &mut self.selected_top_tab_id, "presets", "Presets");
                         for entry in &mut self.top_level_entries {
-                            ui.selectable_value(
+                            top_tab_button(
+                                ui,
                                 &mut self.selected_top_tab_id,
-                                entry.id.id.clone(),
-                                RichText::new(entry.id.display.clone()).raised().size(15.0),
+                                &entry.id.id,
+                                &entry.id.display,
                             );
                         }
                     })
@@ -223,5 +221,39 @@ impl SettingsTab {
         }
 
         requests
+    }
+}
+
+fn top_tab_button(ui: &mut Ui, selected_id: &mut String, id: &str, label: &str) {
+    let selected = selected_id.as_str() == id;
+    let text = RichText::new(label).size(15.0).strong().color(if selected {
+        theme::FG
+    } else {
+        theme::MUTED_FG
+    });
+
+    if ui
+        .add(
+            Button::new(text)
+                .selected(selected)
+                .fill(if selected {
+                    theme::ACCENT_DARK
+                } else {
+                    theme::LIGHTER_BG
+                })
+                .stroke(Stroke::new(
+                    if selected { 1.5 } else { 1.0 },
+                    if selected {
+                        theme::ACCENT
+                    } else {
+                        theme::SEPARATOR_BG
+                    },
+                ))
+                .corner_radius(CornerRadius::same(theme::PILL_ROUNDING))
+                .min_size(egui::vec2(96.0, 34.0)),
+        )
+        .clicked()
+    {
+        *selected_id = id.to_owned();
     }
 }

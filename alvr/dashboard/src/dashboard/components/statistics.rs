@@ -74,43 +74,47 @@ impl StatisticsTab {
         ui.add_space(10.0);
         ui.label(RichText::new(title).size(20.0));
 
-        let canvas_response = Frame::canvas(ui.style()).show(ui, |ui| {
-            ui.ctx().request_repaint();
-            let size = available_width * vec2(1.0, 0.2);
+        let canvas_response = Frame::canvas(ui.style())
+            .fill(theme::DARKER_BG)
+            .corner_radius(CornerRadius::same(theme::ROUNDING))
+            .stroke(Stroke::new(1.0, theme::SEPARATOR_BG))
+            .show(ui, |ui| {
+                ui.ctx().request_repaint();
+                let size = available_width * vec2(1.0, 0.2);
 
-            let (_id, canvas_rect) = ui.allocate_space(size);
+                let (_id, canvas_rect) = ui.allocate_space(size);
 
-            let max = *data_range.end();
-            let min = *data_range.start();
-            let data_rect = Rect::from_x_y_ranges(0.0..=GRAPH_HISTORY_SIZE as f32, max..=min);
-            let to_screen = RectTransform::from_to(data_rect, canvas_rect);
+                let max = *data_range.end();
+                let min = *data_range.start();
+                let data_rect = Rect::from_x_y_ranges(0.0..=GRAPH_HISTORY_SIZE as f32, max..=min);
+                let to_screen = RectTransform::from_to(data_rect, canvas_rect);
 
-            let painter = ui.painter().with_clip_rect(canvas_rect);
+                let painter = ui.painter().with_clip_rect(canvas_rect);
 
-            if max == min {
-                // Drawing using a 0 sized rectangle causes a crash
-                return data_rect;
-            }
+                if max == min {
+                    // Drawing using a 0 sized rectangle causes a crash
+                    return data_rect;
+                }
 
-            graph_content(&painter, to_screen);
+                graph_content(&painter, to_screen);
 
-            ui.painter().text(
-                to_screen * pos2(0.0, min),
-                Align2::LEFT_BOTTOM,
-                format!("{min:.0}"),
-                FontId::monospace(20.0),
-                Color32::GRAY,
-            );
-            ui.painter().text(
-                to_screen * pos2(0.0, max),
-                Align2::LEFT_TOP,
-                format!("{max:.0}"),
-                FontId::monospace(20.0),
-                Color32::GRAY,
-            );
+                ui.painter().text(
+                    to_screen * pos2(0.0, min),
+                    Align2::LEFT_BOTTOM,
+                    format!("{min:.0}"),
+                    FontId::monospace(20.0),
+                    Color32::GRAY,
+                );
+                ui.painter().text(
+                    to_screen * pos2(0.0, max),
+                    Align2::LEFT_TOP,
+                    format!("{max:.0}"),
+                    FontId::monospace(20.0),
+                    Color32::GRAY,
+                );
 
-            data_rect
-        });
+                data_rect
+            });
 
         if let Some(pos) = canvas_response.response.hover_pos() {
             let graph_pos =
@@ -435,47 +439,49 @@ impl StatisticsTab {
     fn draw_statistics_overview(&self, ui: &mut Ui, statistics: &StatisticsSummary) {
         ui.add_space(10.0);
 
-        ui.columns(2, |ui| {
-            ui[0].label("Total packets:");
-            ui[1].label(format!(
-                "{} packets ({} packets/s)",
-                statistics.video_packets_total, statistics.video_packets_per_sec
-            ));
+        theme::section_frame().show(ui, |ui| {
+            ui.columns(2, |ui| {
+                ui[0].label("Total packets:");
+                ui[1].label(format!(
+                    "{} packets ({} packets/s)",
+                    statistics.video_packets_total, statistics.video_packets_per_sec
+                ));
 
-            ui[0].label("Total sent:");
-            ui[1].label(format!("{} MB", statistics.video_mbytes_total));
+                ui[0].label("Total sent:");
+                ui[1].label(format!("{} MB", statistics.video_mbytes_total));
 
-            ui[0].label("Bitrate:");
-            ui[1].label(format!("{:.1} Mbps", statistics.video_mbits_per_sec));
+                ui[0].label("Bitrate:");
+                ui[1].label(format!("{:.1} Mbps", statistics.video_mbits_per_sec));
 
-            ui[0].label("Total latency:");
-            ui[1].label(format!("{:.0} ms", statistics.total_latency_ms));
+                ui[0].label("Total latency:");
+                ui[1].label(format!("{:.0} ms", statistics.total_latency_ms));
 
-            ui[0].label("Encoder latency:");
-            ui[1].label(format!("{:.2} ms", statistics.encode_latency_ms));
+                ui[0].label("Encoder latency:");
+                ui[1].label(format!("{:.2} ms", statistics.encode_latency_ms));
 
-            ui[0].label("Transport latency:");
-            ui[1].label(format!("{:.2} ms", statistics.network_latency_ms));
+                ui[0].label("Transport latency:");
+                ui[1].label(format!("{:.2} ms", statistics.network_latency_ms));
 
-            ui[0].label("Decoder latency:");
-            ui[1].label(format!("{:.2} ms", statistics.decode_latency_ms));
+                ui[0].label("Decoder latency:");
+                ui[1].label(format!("{:.2} ms", statistics.decode_latency_ms));
 
-            ui[0].label("Client FPS:");
-            ui[1].label(format!("{} FPS", statistics.client_fps));
+                ui[0].label("Client FPS:");
+                ui[1].label(format!("{} FPS", statistics.client_fps));
 
-            ui[0].label("Streamer FPS:");
-            ui[1].label(format!("{} FPS", statistics.server_fps));
+                ui[0].label("Streamer FPS:");
+                ui[1].label(format!("{} FPS", statistics.server_fps));
 
-            ui[0].label("Headset battery");
-            ui[1].label(format!(
-                "{}% ({})",
-                statistics.battery_hmd,
-                if statistics.hmd_plugged {
-                    "plugged"
-                } else {
-                    "unplugged"
-                }
-            ));
+                ui[0].label("Headset battery");
+                ui[1].label(format!(
+                    "{}% ({})",
+                    statistics.battery_hmd,
+                    if statistics.hmd_plugged {
+                        "plugged"
+                    } else {
+                        "unplugged"
+                    }
+                ));
+            });
         });
     }
 }

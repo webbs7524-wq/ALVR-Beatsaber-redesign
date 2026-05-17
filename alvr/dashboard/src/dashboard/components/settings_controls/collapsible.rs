@@ -1,6 +1,7 @@
 use super::NestingInfo;
+use alvr_gui_common::theme;
 use alvr_packets::PathValuePair;
-use eframe::egui::Ui;
+use eframe::egui::{self, Button, CornerRadius, RichText, Stroke, Ui};
 use serde_json as json;
 
 pub fn collapsible_button(
@@ -13,9 +14,27 @@ pub fn collapsible_button(
         unreachable!()
     };
 
-    if (*state_mut && ui.small_button("Expand").clicked())
-        || (!*state_mut && ui.small_button("Collapse").clicked())
-    {
+    let label = if *state_mut { "Show" } else { "Hide" };
+    let response = ui.add(
+        Button::new(RichText::new(label).size(12.0).strong())
+            .fill(if *state_mut {
+                theme::LIGHTER_BG
+            } else {
+                theme::ACCENT_DARK
+            })
+            .stroke(Stroke::new(
+                1.0,
+                if *state_mut {
+                    theme::SEPARATOR_BG
+                } else {
+                    theme::ACCENT
+                },
+            ))
+            .corner_radius(CornerRadius::same(theme::PILL_ROUNDING))
+            .min_size(egui::vec2(70.0, 28.0)),
+    );
+
+    if response.clicked() {
         *state_mut = !*state_mut;
         *request = super::get_single_value(
             nesting_info,

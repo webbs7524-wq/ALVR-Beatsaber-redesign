@@ -5,7 +5,10 @@ use alvr_packets::ClientConnectionsAction;
 use alvr_session::{ClientConnectionConfig, SessionConfig};
 use alvr_sockets::WIRED_CLIENT_HOSTNAME;
 use eframe::{
-    egui::{self, Frame, Grid, Layout, ProgressBar, RichText, TextEdit, Ui, Window},
+    egui::{
+        self, CornerRadius, Frame, Grid, Layout, ProgressBar, RichText, Stroke, TextEdit, Ui,
+        Window,
+    },
     emath::{Align, Align2},
     epaint::Color32,
 };
@@ -57,9 +60,11 @@ impl DevicesTab {
         }
 
         if !connected_to_server {
-            Frame::group(ui.style())
+            Frame::new()
                 .inner_margin(theme::FRAME_PADDING)
                 .fill(log_colors::WARNING_LIGHT)
+                .corner_radius(CornerRadius::same(theme::ROUNDING))
+                .stroke(Stroke::new(1.0, Color32::from_rgb(255, 235, 150)))
                 .show(ui, |ui| {
                     Grid::new(0).num_columns(2).show(ui, |ui| {
                         ui.horizontal(|ui| {
@@ -193,64 +198,58 @@ fn wired_client_section(
 ) -> Option<ServerRequest> {
     let mut request = None;
 
-    Frame::group(ui.style())
-        .fill(theme::SECTION_BG)
-        .inner_margin(egui::vec2(
-            theme::FRAME_PADDING + theme::FRAME_TEXT_SPACING,
-            theme::FRAME_PADDING,
-        ))
-        .show(ui, |ui| {
-            ui.horizontal(|ui| {
-                Grid::new("wired-client")
-                    .num_columns(2)
-                    .spacing(egui::vec2(8.0, 8.0))
-                    .show(ui, |ui| {
-                        ui.heading("Wired Connection");
-                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                            let mut wired = maybe_client.is_some();
+    theme::section_frame().show(ui, |ui| {
+        ui.horizontal(|ui| {
+            Grid::new("wired-client")
+                .num_columns(2)
+                .spacing(egui::vec2(8.0, 8.0))
+                .show(ui, |ui| {
+                    ui.heading("Wired Connection");
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        let mut wired = maybe_client.is_some();
 
-                            if alvr_gui_common::switch(ui, &mut wired).changed() {
-                                if wired {
-                                    request = Some(ServerRequest::UpdateClientList {
-                                        hostname: WIRED_CLIENT_HOSTNAME.to_owned(),
-                                        action: ClientConnectionsAction::AddIfMissing {
-                                            trusted: true,
-                                            manual_ips: Vec::new(),
-                                        },
-                                    });
-                                } else {
-                                    request = Some(ServerRequest::UpdateClientList {
-                                        hostname: WIRED_CLIENT_HOSTNAME.to_owned(),
-                                        action: ClientConnectionsAction::RemoveEntry,
-                                    });
-                                }
+                        if alvr_gui_common::switch(ui, &mut wired).changed() {
+                            if wired {
+                                request = Some(ServerRequest::UpdateClientList {
+                                    hostname: WIRED_CLIENT_HOSTNAME.to_owned(),
+                                    action: ClientConnectionsAction::AddIfMissing {
+                                        trusted: true,
+                                        manual_ips: Vec::new(),
+                                    },
+                                });
+                            } else {
+                                request = Some(ServerRequest::UpdateClientList {
+                                    hostname: WIRED_CLIENT_HOSTNAME.to_owned(),
+                                    action: ClientConnectionsAction::RemoveEntry,
+                                });
                             }
-                            ui.horizontal(|ui| {
-                                ui.add_space(theme::FRAME_TEXT_SPACING);
-                            });
+                        }
+                        ui.horizontal(|ui| {
+                            ui.add_space(theme::FRAME_TEXT_SPACING);
+                        });
+                    });
+                    ui.end_row();
+
+                    if let Some(progress) = adb_download_progress.filter(|p| *p < 1.0) {
+                        ui.horizontal(|ui| {
+                            ui.label("ADB download progress");
+                        });
+                        ui.horizontal(|ui| {
+                            ui.add(ProgressBar::new(progress).animate(true).show_percentage());
                         });
                         ui.end_row();
-
-                        if let Some(progress) = adb_download_progress.filter(|p| *p < 1.0) {
-                            ui.horizontal(|ui| {
-                                ui.label("ADB download progress");
-                            });
-                            ui.horizontal(|ui| {
-                                ui.add(ProgressBar::new(progress).animate(true).show_percentage());
-                            });
-                            ui.end_row();
-                        } else if let Some((_, data)) = maybe_client {
-                            ui.horizontal(|ui| {
-                                ui.label(&data.display_name);
-                            });
-                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                connection_label(ui, &data.connection_state);
-                            });
-                            ui.end_row();
-                        }
-                    });
-            });
+                    } else if let Some((_, data)) = maybe_client {
+                        ui.horizontal(|ui| {
+                            ui.label(&data.display_name);
+                        });
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            connection_label(ui, &data.connection_state);
+                        });
+                        ui.end_row();
+                    }
+                });
         });
+    });
 
     request
 }
@@ -261,44 +260,38 @@ fn new_clients_section(
 ) -> Option<ServerRequest> {
     let mut request = None;
 
-    Frame::group(ui.style())
-        .inner_margin(theme::FRAME_PADDING)
-        .fill(theme::SECTION_BG)
-        .show(ui, |ui| {
-            ui.vertical_centered_justified(|ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(theme::FRAME_TEXT_SPACING);
-                    ui.heading("New Wireless Devices");
+    theme::section_frame().show(ui, |ui| {
+        ui.vertical_centered_justified(|ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(theme::FRAME_TEXT_SPACING);
+                ui.heading("New Wireless Devices");
 
-                    // Extend to the right
-                    ui.with_layout(Layout::right_to_left(Align::Center), |_| ());
-                });
+                // Extend to the right
+                ui.with_layout(Layout::right_to_left(Align::Center), |_| ());
             });
-            for (hostname, _) in clients {
-                Frame::group(ui.style())
-                    .fill(theme::DARKER_BG)
-                    .inner_margin(egui::vec2(15.0, 12.0))
-                    .show(ui, |ui| {
-                        Grid::new(format!("{hostname}-new-clients"))
-                            .num_columns(2)
-                            .spacing(egui::vec2(8.0, 8.0))
-                            .show(ui, |ui| {
-                                ui.horizontal(|ui| {
-                                    ui.label(hostname);
-                                });
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    if ui.button("Trust").clicked() {
-                                        request = Some(ServerRequest::UpdateClientList {
-                                            hostname: hostname.clone(),
-                                            action: ClientConnectionsAction::Trust,
-                                        });
-                                    };
-                                });
-                                ui.end_row();
-                            });
-                    });
-            }
         });
+        for (hostname, _) in clients {
+            theme::subsection_frame().show(ui, |ui| {
+                Grid::new(format!("{hostname}-new-clients"))
+                    .num_columns(2)
+                    .spacing(egui::vec2(8.0, 8.0))
+                    .show(ui, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label(hostname);
+                        });
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui.button("Trust").clicked() {
+                                request = Some(ServerRequest::UpdateClientList {
+                                    hostname: hostname.clone(),
+                                    action: ClientConnectionsAction::Trust,
+                                });
+                            };
+                        });
+                        ui.end_row();
+                    });
+            });
+        }
+    });
 
     request
 }
@@ -310,85 +303,101 @@ fn trusted_clients_section(
 ) -> Option<ServerRequest> {
     let mut request = None;
 
-    Frame::group(ui.style())
-        .fill(theme::SECTION_BG)
-        .inner_margin(theme::FRAME_PADDING)
-        .show(ui, |ui| {
-            Grid::new(0).num_columns(2).show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.add_space(theme::FRAME_TEXT_SPACING);
-                    ui.heading("Trusted Wireless Devices");
-                });
-
-                ui.with_layout(Layout::right_to_left(eframe::emath::Align::Center), |ui| {
-                    if ui.button("Add device manually").clicked() {
-                        *edit_popup_state = Some(EditPopupState {
-                            hostname: "XXXX.client.local.".into(),
-                            new_devices: true,
-                            ips: Vec::new(),
-                        });
-                    }
-                });
+    theme::section_frame().show(ui, |ui| {
+        Grid::new(0).num_columns(2).show(ui, |ui| {
+            ui.horizontal(|ui| {
+                ui.add_space(theme::FRAME_TEXT_SPACING);
+                ui.heading("Trusted Wireless Devices");
             });
 
-            for (hostname, data) in clients {
-                Frame::group(ui.style())
-                    .fill(theme::DARKER_BG)
-                    .inner_margin(egui::vec2(15.0, 12.0))
-                    .show(ui, |ui| {
-                        Grid::new(format!("{hostname}-clients"))
-                            .num_columns(2)
-                            .spacing(egui::vec2(8.0, 8.0))
-                            .show(ui, |ui| {
-                                ui.label(&data.display_name);
-                                ui.horizontal(|ui| {
-                                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                        connection_label(ui, &data.connection_state)
-                                    });
-                                });
-
-                                ui.end_row();
-
-                                ui.label(format!(
-                                    "{hostname}: {}",
-                                    data.current_ip
-                                        .map_or_else(|| "Unknown IP".into(), |ip| ip.to_string()),
-                                ));
-                                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                                    if ui.button("Remove").clicked() {
-                                        request = Some(ServerRequest::UpdateClientList {
-                                            hostname: hostname.clone(),
-                                            action: ClientConnectionsAction::RemoveEntry,
-                                        });
-                                    }
-                                    if ui.button("Edit").clicked() {
-                                        *edit_popup_state = Some(EditPopupState {
-                                            new_devices: false,
-                                            hostname: hostname.to_owned(),
-                                            ips: data
-                                                .manual_ips
-                                                .iter()
-                                                .map(|addr| addr.to_string())
-                                                .collect::<Vec<String>>(),
-                                        });
-                                    }
-                                });
-                            });
+            ui.with_layout(Layout::right_to_left(eframe::emath::Align::Center), |ui| {
+                if ui.button("Add device manually").clicked() {
+                    *edit_popup_state = Some(EditPopupState {
+                        hostname: "XXXX.client.local.".into(),
+                        new_devices: true,
+                        ips: Vec::new(),
                     });
-            }
+                }
+            });
         });
+
+        for (hostname, data) in clients {
+            theme::subsection_frame().show(ui, |ui| {
+                Grid::new(format!("{hostname}-clients"))
+                    .num_columns(2)
+                    .spacing(egui::vec2(8.0, 8.0))
+                    .show(ui, |ui| {
+                        ui.label(&data.display_name);
+                        ui.horizontal(|ui| {
+                            ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                                connection_label(ui, &data.connection_state)
+                            });
+                        });
+
+                        ui.end_row();
+
+                        ui.label(format!(
+                            "{hostname}: {}",
+                            data.current_ip
+                                .map_or_else(|| "Unknown IP".into(), |ip| ip.to_string()),
+                        ));
+                        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                            if ui.button("Remove").clicked() {
+                                request = Some(ServerRequest::UpdateClientList {
+                                    hostname: hostname.clone(),
+                                    action: ClientConnectionsAction::RemoveEntry,
+                                });
+                            }
+                            if ui.button("Edit").clicked() {
+                                *edit_popup_state = Some(EditPopupState {
+                                    new_devices: false,
+                                    hostname: hostname.to_owned(),
+                                    ips: data
+                                        .manual_ips
+                                        .iter()
+                                        .map(|addr| addr.to_string())
+                                        .collect::<Vec<String>>(),
+                                });
+                            }
+                        });
+                    });
+            });
+        }
+    });
 
     request
 }
 
 fn connection_label(ui: &mut Ui, connection_state: &ConnectionState) {
-    match connection_state {
-        ConnectionState::Disconnected => ui.colored_label(Color32::GRAY, "Disconnected"),
-        ConnectionState::Connecting => ui.colored_label(log_colors::WARNING_LIGHT, "Connecting"),
-        ConnectionState::Connected => ui.colored_label(theme::OK_GREEN, "Connected"),
-        ConnectionState::Streaming => ui.colored_label(theme::OK_GREEN, "Streaming"),
-        ConnectionState::Disconnecting => {
-            ui.colored_label(log_colors::WARNING_LIGHT, "Disconnecting")
-        }
+    let (label, color, fill) = match connection_state {
+        ConnectionState::Disconnected => (
+            "Disconnected",
+            theme::MUTED_FG,
+            Color32::from_rgba_premultiplied(64, 73, 111, 130),
+        ),
+        ConnectionState::Connecting => (
+            "Connecting",
+            log_colors::WARNING_LIGHT,
+            Color32::from_rgba_premultiplied(118, 86, 22, 145),
+        ),
+        ConnectionState::Connected => (
+            "Connected",
+            theme::OK_GREEN,
+            Color32::from_rgba_premultiplied(25, 100, 73, 155),
+        ),
+        ConnectionState::Streaming => (
+            "Streaming",
+            theme::ACCENT,
+            Color32::from_rgba_premultiplied(0, 92, 128, 160),
+        ),
+        ConnectionState::Disconnecting => (
+            "Disconnecting",
+            log_colors::WARNING_LIGHT,
+            Color32::from_rgba_premultiplied(118, 86, 22, 145),
+        ),
     };
+
+    theme::pill_frame(fill, color).show(ui, |ui| {
+        ui.label(RichText::new(label).size(12.0).strong().color(color));
+    });
 }
