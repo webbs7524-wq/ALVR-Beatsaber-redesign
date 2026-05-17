@@ -1,5 +1,6 @@
 <p align="center"> <img width="500" src="resources/ALVR-Grey.svg"/> </p>
-
+# CHANGES
+added a beatsaber redesign for people who want to be fancy smancy
 # ALVR - Air Light VR
 
 [![badge-discord][]][link-discord] [![badge-matrix][]][link-matrix] [![badge-opencollective][]][link-opencollective]
